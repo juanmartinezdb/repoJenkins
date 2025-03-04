@@ -54,18 +54,16 @@ pipeline {
         }
 
         stage('Deploy') {
-            steps {
-                sh "echo 'Copiando el WAR al contenedor de Tomcat'"
-                sh '''
-                    if [ -f "codigo/webapp/target/webapp.war" ]; then
-                        docker cp codigo/webapp/target/webapp.war cep:/usr/local/tomcat/webapps/
-                        echo 'WAR copiado con éxito'
-                    else
-                        echo "ERROR: No se encontró el archivo WAR, no se puede copiar."
-                        exit 1
-                    fi
-                '''
-            }
+    steps {
+        sh "echo 'Desplegando'"
+        // Verifica o crea el directorio en el contenedor Tomcat
+        sh "docker exec cep mkdir -p /usr/local/tomcat/webapps/"
+        // Copia el WAR desde Jenkins al contenedor Tomcat (nota: esto se hace desde el host)
+        sh "docker cp serverJenkins:/var/jenkins_home/workspace/Pipeline-Jenkins/codigo/webapp/target/webapp.war cep:/usr/local/tomcat/webapps/"
+        sh "echo 'WAR copiado con éxito'"
+    }
+}
+
         }
     }
 }
