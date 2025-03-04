@@ -6,7 +6,7 @@ pipeline {
             steps {
                 dir('codigo') {
                     // Clonar el código fuente
-                    git 'https://github.com/jleetutorial/maven-project.git'
+                    git ' https://github.com/juanmartinezdb/maven-project.git
 
                     // Ejecutar Maven (usando withMaven para mejor integración)
                     withMaven(maven: 'Maven 3') {
