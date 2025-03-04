@@ -32,7 +32,7 @@ pipeline {
                 sh "echo 'Preparando imagen de Docker'"
                 dir('contenedor') {
                     withCredentials([usernamePassword(credentialsId: 'gitprueba', passwordVariable: 'password', usernameVariable: 'usuario')]) {
-                        git 'https://github.com/pruebainf/dockerimage-from-jenkins-pipelin.git'
+                        git 'https://github.com/juanmartinezdb/dockerimage-from-jenkins-pipelin.git'
                         sh '''
                             # Verificar si el WAR existe antes de copiarlo
                             if [ -f "../codigo/webapp/target/webapp.war" ]; then
