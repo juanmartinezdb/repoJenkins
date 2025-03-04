@@ -1,71 +1,71 @@
-def produccion = [:]
-            produccion.name = 'curso'
-            produccion.host = '172.17.0.2'
-            produccion.user = 'root'
-            produccion.password = 'root'
-            produccion.allowAnyHosts = true
 pipeline {
     agent any
+
     stages {
         stage('Build') {
             steps {
-                
-                //Creo el directorio del código. Si no existe se crea
-                
                 dir('codigo') {
-                    // Get some code from a GitHub repository
+                    // Clonar el código fuente
                     git 'https://github.com/jleetutorial/maven-project.git'
 
-                    // Run Maven on a Unix agent.
-                    sh "mvn clean package -DskipTests"
-
-                    // To run Maven on a Windows agent, use
-                    // bat "mvn -Dmaven.test.failure.ignore=true clean package"    
+                    // Ejecutar Maven (usando withMaven para mejor integración)
+                    withMaven(maven: 'Maven 3') {
+                        sh "mvn clean package -DskipTests"
+                    }
                 }
-                
             }
-
             post {
-                // If Maven was able to run the tests, even if some of the test
-                // failed, record the test results and archive the jar file.
                 success {
-                    archiveArtifacts 'codigo/webapp/target/*.war'
+                    archiveArtifacts artifacts: 'codigo/webapp/target/*.war', fingerprint: true
                 }
             }
         }
+
         stage('Test') {
             steps {
                 sh "echo 'Realización de algunos Test'"    
             }
-            
         }
+
         stage('Container') {
             steps {
-                sh "echo 'Creo el contenedor'"
+                sh "echo 'Preparando imagen de Docker'"
                 dir('contenedor') {
                     withCredentials([usernamePassword(credentialsId: 'gitprueba', passwordVariable: 'password', usernameVariable: 'usuario')]) {
                         git 'https://github.com/pruebainf/dockerimage-from-jenkins-pipelin.git'
-                        sh('''
-                            cp ../codigo/webapp/target/webapp.war .
-                            git add .
-                            git config --global user.email 'testif@iesalixar.org'
-                            git config --global user.name  'testif@iesalixar.org'
-                            git commit -m 'Desde Jenkinsfile'
-                            git config --local credential.helper "!f() { echo username=\\$usuario; echo password=\\$password; }; f"
-                            git push origin master
-                        ''')
+                        sh '''
+                            # Verificar si el WAR existe antes de copiarlo
+                            if [ -f "../codigo/webapp/target/webapp.war" ]; then
+                                cp ../codigo/webapp/target/webapp.war .
+                                git add .
+                                git config --local user.email 'testif@iesalixar.org'
+                                git config --local user.name 'testif@iesalixar.org'
+                                git commit -m 'Desde Jenkinsfile'
+                                git config --local credential.helper "!f() { echo username=\\$usuario; echo password=\\$password; }; f"
+                                git push origin master
+                            else
+                                echo "ERROR: No se encontró el archivo WAR"
+                                exit 1
+                            fi
+                        '''
                     }
                 }
-                
             }
         }
+
         stage('Deploy') {
             steps {
-                sh "echo 'Desplegando'"    
-                sshPut remote: produccion, from: 'codigo/webapp/target/webapp.war' , into: '/usr/local/tomcat/webapps/'    
+                sh "echo 'Copiando el WAR al contenedor de Tomcat'"
+                sh '''
+                    if [ -f "codigo/webapp/target/webapp.war" ]; then
+                        docker cp codigo/webapp/target/webapp.war cep:/usr/local/tomcat/webapps/
+                        echo 'WAR copiado con éxito'
+                    else
+                        echo "ERROR: No se encontró el archivo WAR, no se puede copiar."
+                        exit 1
+                    fi
+                '''
             }
-            
         }
-        
     }
 }
